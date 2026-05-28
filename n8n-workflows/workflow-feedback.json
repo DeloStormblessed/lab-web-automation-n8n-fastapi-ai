@@ -1,0 +1,141 @@
+{
+  "name": "Workflow 2 - Feedback Análisis y Ticket",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "feedback",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "feedback"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://host.docker.internal:8000/usuarios/{{ $json.usuario_id }}",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000002",
+      "name": "GET /usuarios/:id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/chat",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ mensaje: \"Analiza este feedback de \" + $json.nombre + \" (plan: \" + $json.plan + \"): '\" + $('Webhook').item.json.mensaje + \"' — Calificación: \" + $('Webhook').item.json.calificacion + \"/5. Devuelve JSON con campos: sentimiento, problema_principal, accion\" }) }}",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000003",
+      "name": "POST /api/chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Webhook').item.json.calificacion }}",
+              "operation": "smaller",
+              "value2": 3
+            }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000004",
+      "name": "IF: calificacion < 3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/tareas",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ titulo: \"Ticket feedback: \" + $json.problema_principal, prioridad: \"alta\", descripcion: \"Usuario: \" + $('GET /usuarios/:id').item.json.nombre + \" | Cal: \" + $('Webhook').item.json.calificacion + \"/5\" }) }}",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000005",
+      "name": "POST /tareas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 160]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000006",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, sentimiento: $('POST /api/chat').item.json.sentimiento, ticket_creado: $json.ok !== undefined }) }}",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000007",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "GET /usuarios/:id", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET /usuarios/:id": {
+      "main": [
+        [{ "node": "POST /api/chat", "type": "main", "index": 0 }]
+      ]
+    },
+    "POST /api/chat": {
+      "main": [
+        [{ "node": "IF: calificacion < 3", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF: calificacion < 3": {
+      "main": [
+        [{ "node": "POST /tareas", "type": "main", "index": 0 }],
+        [{ "node": "Merge", "type": "main", "index": 1 }]
+      ]
+    },
+    "POST /tareas": {
+      "main": [
+        [{ "node": "Merge", "type": "main", "index": 0 }]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "b1b2c3d4-workflow-002-v3",
+  "meta": { "instanceId": "lab-ironhack" },
+  "id": "workflow-feedback",
+  "tags": []
+}
