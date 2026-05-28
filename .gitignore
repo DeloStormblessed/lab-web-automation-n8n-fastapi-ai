@@ -1,0 +1,23 @@
+# Entorno
+.env
+*.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# N8N data
+n8n_data/
+
+# Logs
+*.log
+informes.jsonl
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
